@@ -58,6 +58,7 @@ use ieee.numeric_std.all;
 entity invaders_top is
 	port(
 		Clk					: in std_logic;
+		Clk_x2				: in std_logic;
 		Clk_x4				: in std_logic;
 		
 		I_RESET				: in std_logic;
@@ -74,7 +75,18 @@ entity invaders_top is
 		video_hs			: out std_logic;
 		video_vs			: out std_logic;
 		
+		r				: out std_logic_vector(7 downto 0);
+		g				: out std_logic_vector(7 downto 0);
+		b				: out std_logic_vector(7 downto 0);
+		de				: out std_logic;
+		hs				: out std_logic;
+		vs				: out std_logic;		
+		
 		audio_out			: out std_logic_vector(7 downto 0);
+		
+		info					: in std_logic;
+--		bonus					: in std_logic;
+		bases					: in std_logic_vector(1 downto 0);
 		
 		btn_coin			: in std_logic;
 		btn_one_player		: in std_logic;
@@ -144,22 +156,36 @@ begin
   video_hs 		<=  HSync;
   video_vs 		<=  VSync;
   video_hblank 	<= not HSync;
-  video_vblank 	<=  not VSync;
+  video_vblank 	<= not VSync;
+  
+  r 		<= (VideoRGB_X2(2) & VideoRGB_X2(2) & VideoRGB_X2(2) & VideoRGB_X2(2) & VideoRGB_X2(2) & VideoRGB_X2(2) & VideoRGB_X2(2) & VideoRGB_X2(2));
+  g 		<= (VideoRGB_X2(1) & VideoRGB_X2(1) & VideoRGB_X2(1) & VideoRGB_X2(1) & VideoRGB_X2(1) & VideoRGB_X2(1) & VideoRGB_X2(1) & VideoRGB_X2(1));
+  b 		<= (VideoRGB_X2(0) & VideoRGB_X2(0) & VideoRGB_X2(0) & VideoRGB_X2(0) & VideoRGB_X2(0) & VideoRGB_X2(0) & VideoRGB_X2(0) & VideoRGB_X2(0));
+  hs 		<=  HSync_X2;
+  vs 		<=  VSync_X2;
+  de 	<= not(HSync_X2 or VSync_X2);
+
   
   --
 
-	DIP <= "00000000";
+	DIP(8 downto 5) <= "1111";
+	DIP(1) <= info;
+--	DIP(2) <= bonus;
+	DIP(2) <= '0';
+	DIP(3) <= bases(1);
+	DIP(4) <= bases(0);
+	
 
 	core : entity work.invaders
 		port map(
 			Rst_n      => I_RESET_L,
 			Clk        => Clk,
-			MoveLeft   => not btn_left,
-			MoveRight  => not btn_right,
-			Coin       => not btn_coin,
-			Sel1Player => not btn_one_player,
-			Sel2Player => not btn_two_player,
-			Fire       => not btn_fire,
+			MoveLeft   => btn_left,
+			MoveRight  => btn_right,
+			Coin       => btn_coin,
+			Sel1Player => btn_one_player,
+			Sel2Player => btn_two_player,
+			Fire       => btn_fire,
 			DIP        => DIP,
 			RDB        => RDB,
 			IB         => IB,
@@ -301,6 +327,21 @@ port map(
 	  end if;
 	end if;
   end process;
+  
+  u_dblscan : entity work.DBLSCAN
+	port map (
+	  RGB_IN(7 downto 3) => "00000",
+	  RGB_IN(2 downto 0) => VideoRGB,
+	  HSYNC_IN           => HSync,
+	  VSYNC_IN           => VSync,
+
+	  RGB_OUT            => VideoRGB_X2,
+	  HSYNC_OUT          => HSync_X2,
+	  VSYNC_OUT          => VSync_X2,
+	  --  NOTE CLOCKS MUST BE PHASE LOCKED !!
+	  CLK                => Clk,
+	  CLK_X2             => Clk_x2
+	);
 
 
   --

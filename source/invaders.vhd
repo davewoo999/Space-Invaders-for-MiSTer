@@ -58,12 +58,12 @@ entity invaders is
 	port(
 		Rst_n           : in  std_logic;
 		Clk             : in  std_logic;
+		MoveLeft        : in  std_logic;
+		MoveRight       : in  std_logic;
 		Coin            : in  std_logic;
 		Sel1Player      : in  std_logic;
 		Sel2Player      : in  std_logic;
 		Fire            : in  std_logic;
-		MoveLeft        : in  std_logic;
-		MoveRight       : in  std_logic;
 		DIP             : in  std_logic_vector(8 downto 1);
 		RDB             : in  std_logic_vector(7 downto 0);
 		IB              : in  std_logic_vector(7 downto 0);
@@ -197,31 +197,31 @@ begin
 				S when others;
 
 	GDB0(0) <= DIP(8);  -- Unused ?
-	GDB0(1) <= DIP(7);
+	GDB0(1) <= DIP(7);  -- Unused ?
 	GDB0(2) <= DIP(6);  -- Unused ?
-	GDB0(3) <= '1';     -- Unused ?
-	GDB0(4) <= not Fire;
-	GDB0(5) <= not MoveLeft;
-	GDB0(6) <= not MoveRight;
+	GDB0(3) <= '0';     -- Unused unconnected on schem?
+	GDB0(4) <= Fire;
+	GDB0(5) <= MoveLeft;
+	GDB0(6) <= MoveRight;
 	GDB0(7) <= DIP(5);  -- Unused ?
 
-	GDB1(0) <= not Coin;
-	GDB1(1) <= not Sel2Player;
-	GDB1(2) <= not Sel1Player;
-	GDB1(3) <= '1';             -- Unused ?
-	GDB1(4) <= not Fire;
-	GDB1(5) <= not MoveLeft;
-	GDB1(6) <= not MoveRight;
-	GDB1(7) <= '1';             -- Unused ?
+	GDB1(0) <= Coin;
+	GDB1(1) <= Sel2Player;
+	GDB1(2) <= Sel1Player;
+	GDB1(3) <= '1';             -- Unused set high on schem?
+	GDB1(4) <= Fire;
+	GDB1(5) <= MoveLeft;
+	GDB1(6) <= MoveRight;
+	GDB1(7) <= '0';             -- Unused unconnected on schem?
 
-	GDB2(0) <= DIP(4);  -- LSB Lives 3-6
-	GDB2(1) <= DIP(3);  -- MSB Lives 3-6
-	GDB2(2) <= '0';             -- Tilt ?
-	GDB2(3) <= DIP(2);  -- Bonus life at 1000 or 1500
-	GDB2(4) <= not Fire;
-	GDB2(5) <= not MoveLeft;
-	GDB2(6) <= not MoveRight;
-	GDB2(7) <= DIP(1);  -- Coin info
+	GDB2(0) <= DIP(4);  -- LSB Lives 3-6 default on '0'
+	GDB2(1) <= DIP(3);  -- MSB Lives 3-6 default on '0'
+	GDB2(2) <= '0';             -- Tilt 
+	GDB2(3) <= DIP(2);  -- Bonus life at 1000 or 1500 can only be set before switch on default on '0'
+	GDB2(4) <= Fire;
+	GDB2(5) <= MoveLeft;
+	GDB2(6) <= MoveRight;
+	GDB2(7) <= DIP(1);  -- Coin info default on '0'
 
 	PortWr(2) <= '1' when AD_i(10 downto 8) = "010" and Sample = '1' else '0';
 	PortWr(3) <= '1' when AD_i(10 downto 8) = "011" and Sample = '1' else '0';

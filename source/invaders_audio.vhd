@@ -255,7 +255,7 @@ begin
 
 	-- Invader hit decay time = 300ms
 	-- decay val = 100 x 10/300 = 3.3
-	process(P3(3),clk10ms)
+	process(P3(3),clk10ms,p3_3_prev)
 	begin
 	  if (P3(3) = '1' and p3_3_prev = '0') then
 			invaderHitVol <= "01100100"; --100
@@ -272,7 +272,7 @@ begin
 	
 	-- Explosion decay time = 1000ms
 	-- decay val = 100 x 10/1000 = 1
-	process(P3(2),clk10ms)
+	process(P3(2),clk10ms,p3_2_prev)
 	begin
 	  if (P3(2) = '1' and p3_2_prev = '0') then
 			explosionVol <= "01100100"; --100
@@ -290,7 +290,7 @@ begin
 
 	-- Missile decay time = 1000ms
 	-- decay val = 100 x 10/1000 = 1
-	process(P3(1),clk10ms)
+	process(P3(1),clk10ms,p3_1_prev)
 	begin
 	  if (P3(1) = '1' and p3_1_prev = '0') then
 			missileVol <= "01100100"; --100
@@ -307,7 +307,7 @@ begin
 	end process;
 
 	-- bonus base - pulsed 100ms on, 30ms off
-	process(P3(4),clk10ms)
+	process(P3(4),clk10ms,p3_4_prev)
 	begin
 	  if (P3(4) = '1' and p3_4_prev = '0') then
 			extraBaseClk <= "0000";
