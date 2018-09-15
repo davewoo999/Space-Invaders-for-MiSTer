@@ -19,7 +19,7 @@
 //============================================================================
 
 // Variuos ports combined -  changes to rom and ram for MiSTer port - Dave Wood (oldgit)
-// latest sound module and changes for 2 player added
+// latest sound module and changes for 2 player added - OSD options to change dip switches
 
 module emu
 (
@@ -90,9 +90,13 @@ assign HDMI_ARY = status[1] ? 8'd9  : status[2] ? 8'd3 : 8'd1;
 localparam CONF_STR = {
 	"A.invaders;;",
 	"-;",
-//	"O1,Aspect Ratio,Original,Wide;",
-//	"O2,Orientation,Vert,Horz;",
+//	"O1,Aspect Ratio,Original,Wide;", --- no effect
+//	"O2,Orientation,Vert,Horz;",		 --- cannot get it to work
 	"O34,Scanlines(vert),No,25%,50%,75%;",
+	"-;",
+	"O5,Display Coin Info,ON,OFF;",
+//	"O6,Bonus Base,1500pts,1000pts;", This can only be set before game start - changes freezes play and no reset - could add code to reset on change??
+	"O78,Bases,3,4,5,6;",
 	"-;",
 	"-;",
 	"T6,Reset;",
@@ -187,14 +191,14 @@ wire rde, rhs, rvs;
 wire [2:0] r,g,rr,rg;
 wire [2:0] b,rb;
 
-assign VGA_CLK  = clk_4p9; // was clk_19p9
+assign VGA_CLK  = clk_19p9; // was clk_19p9
 assign VGA_CE   = ce_vid;
-assign VGA_R    = {r,r,r[2:1]};
-assign VGA_G    = {g,g,g[2:1]};
-assign VGA_B    = {b,b,b[2:1]};
-assign VGA_DE   = ~(hblank | vblank);
-assign VGA_HS   = ~hs;
-assign VGA_VS   = ~vs;
+//assign VGA_R    = {r,r,r[2:1]};
+//assign VGA_G    = {g,g,g[2:1]};
+//assign VGA_B    = {b,b,b[2:1]};
+//assign VGA_DE   = ~(hblank | vblank);
+//assign VGA_HS   = ~hs;
+//assign VGA_VS   = ~vs;
 
 assign HDMI_CLK = status[2] ? VGA_CLK: clk_39p9;
 assign HDMI_CE  = status[2] ? VGA_CE : 1'b1;
@@ -206,9 +210,9 @@ assign HDMI_HS  = status[2] ? VGA_HS : rhs;
 assign HDMI_VS  = status[2] ? VGA_VS : rvs;
 assign HDMI_SL  = status[2] ? 2'd0   : status[4:3];
 
-screen_rotate #(318,260,9,2,1,0) screen_rotate
+screen_rotate #(318,260,9,2,1,1) screen_rotate
 (
-	.clk_in(clk_4p9), // was 19p9
+	.clk_in(clk_4p9), // with 39.9 hdmi -- 9.9 full height  half width 19.9 double height half width
 	.ce_in(ce_vid),
 	.video_in({r,g,b}),
 	.hblank(hblank),
@@ -220,7 +224,12 @@ screen_rotate #(318,260,9,2,1,0) screen_rotate
 	.vsync(rvs),
 	.de(rde)
 );
-
+wire info;
+//wire bonus;
+wire [1:0] bases;
+assign info = status[5];
+//assign bonus = status[6];
+assign bases = status[8:7];
 wire [7:0] audio;
 assign AUDIO_L = {audio, audio};
 assign AUDIO_R = AUDIO_L;
@@ -230,6 +239,7 @@ invaders_top invaders_top
 (
 
 	.Clk(clk_9p9),
+	.Clk_x2(clk_19p9),
 	.Clk_x4(clk_39p9),
 
 	.I_RESET(RESET | status[0] | status[6] | buttons[1] | ioctl_download),
@@ -245,8 +255,18 @@ invaders_top invaders_top
 	.video_vblank(vblank),
 	.video_hs(hs),
 	.video_vs(vs),
+	
+	.r(VGA_R),
+	.g(VGA_G),
+	.b(VGA_B),
+	.de(VGA_DE),
+	.hs(VGA_HS),
+	.vs(VGA_VS),
+	
 	.audio_out(audio),
-
+	.info(info),
+//	.bonus(bonus),
+	.bases(bases),
 	.btn_coin(btn_coin | joy[8]),
 	.btn_one_player(btn_one_player | joy[8]),
 	.btn_two_player(btn_two_players),

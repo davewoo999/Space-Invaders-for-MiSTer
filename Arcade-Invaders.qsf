@@ -355,6 +355,7 @@ set_global_assignment -name PRE_FLOW_SCRIPT_FILE "quartus_sh:sys/build_id.tcl"
 
 
 
+set_global_assignment -name VHDL_FILE source/dblscan.vhd
 set_global_assignment -name VERILOG_FILE screen_rotate.v
 set_global_assignment -name VHDL_FILE source/T80/T80_Reg.vhd
 set_global_assignment -name VHDL_FILE source/T80/T80_Pack.vhd
