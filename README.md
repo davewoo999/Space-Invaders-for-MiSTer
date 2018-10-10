@@ -18,6 +18,10 @@ http://fpgaarcade.com/games.htm
 
 The rbf file is in releases
 
+There are options in the OSD to change some of the DIP switches and 
+to change the colour overlays.
+No orientation button, but the original sideways screen should be available on VGA.
+
 ---------------------------------------------------------------------------------
 
                                 *** Attention ***
@@ -35,6 +39,6 @@ ROM is not included. In order to use this arcade, you need to provide a correct 
 
 4) Put required zip into the same folder and execute the bat again.
 
-5) If everything will go without errors or warnings, then you will get the rom file.
+5) If everything woks without errors or warnings, then you will get the rom file.
 
 6) Place the rom file into root of SD card.
