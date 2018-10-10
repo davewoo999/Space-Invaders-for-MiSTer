@@ -59,14 +59,14 @@ entity mw8080 is
 		Rst_n           : in  std_logic;
 		Clk             : in  std_logic;
 		RWE_n           : out std_logic;
-		RDB             : in  std_logic_vector(7 downto 0);
-		RAB             : out std_logic_vector(12 downto 0);
+		ram_do             : in  std_logic_vector(7 downto 0);
+		ram_addr             : out std_logic_vector(12 downto 0);
 		Sounds          : out std_logic_vector(7 downto 0);
 		Ready           : out std_logic;
 		GDB             : in  std_logic_vector(7 downto 0);
-		IB              : in  std_logic_vector(7 downto 0);
-		DB              : out std_logic_vector(7 downto 0);
-		AD              : out std_logic_vector(15 downto 0);
+		rom_do              : in  std_logic_vector(7 downto 0);
+		cpu_do              : out std_logic_vector(7 downto 0);
+		cpu_addr              : out std_logic_vector(15 downto 0);
 		Status          : out std_logic_vector(7 downto 0);
 		Systb           : out std_logic;
 		Int             : out std_logic;
@@ -121,20 +121,20 @@ architecture struct of mw8080 is
 	signal ISel         : std_logic_vector(1 downto 0);
 	signal DI           : std_logic_vector(7 downto 0);
 	signal DO           : std_logic_vector(7 downto 0);
-	signal RR           : std_logic_vector(9 downto 0);
+	signal ram_read     : std_logic_vector(9 downto 0);
 
 	signal VidEn        : std_logic;
-	signal CntD5        : unsigned(3 downto 0); -- Horizontal counter / 320
-	signal CntE5        : unsigned(4 downto 0); -- Horizontal counter 2
-	signal CntE6        : unsigned(3 downto 0); -- Vertical counter / 262
-	signal CntE7        : unsigned(4 downto 0); -- Vertical counter 2
+	signal CntH4        : unsigned(3 downto 0); -- Horizontal counter / 320 ACTUAL 256
+	signal CntH5        : unsigned(4 downto 0); -- Horizontal counter 2
+	signal CntV4        : unsigned(3 downto 0); -- Vertical counter / 262 ACTUAL 224
+	signal CntV5        : unsigned(4 downto 0); -- Vertical counter 2
 	signal Shift        : std_logic_vector(7 downto 0);
 
 begin
 
 	Status <= Status_i;
 	Ready <= Ready_i;
-	DB <= DO;
+	cpu_do <= DO;
 	Systb <= Sync;
 	Int <= Int_i;
 	Hold <= not Hold_n;
@@ -142,30 +142,30 @@ begin
 	DBin_n <= not DBin;
 	Sample <= not Wr_n and Status_i(4);
 	Wr <= not Wr_n;
-	AD <= A;
-	Sounds(0) <= CntE7(3);
-	Sounds(1) <= CntE7(2);
-	Sounds(2) <= CntE7(1);
-	Sounds(3) <= CntE7(0);
-	Sounds(4) <= CntE6(3);
-	Sounds(5) <= CntE6(2);
-	Sounds(6) <= CntE6(1);
-	Sounds(7) <= CntE6(0);
+	cpu_addr <= A;
+	Sounds(0) <= CntV5(3);
+	Sounds(1) <= CntV5(2);
+	Sounds(2) <= CntV5(1);
+	Sounds(3) <= CntV5(0);
+	Sounds(4) <= CntV4(3);
+	Sounds(5) <= CntV4(2);
+	Sounds(6) <= CntV4(1);
+	Sounds(7) <= CntV4(0);
 
-	IntTrig <= (not CntE7(2) nand CntE7(3)) nand not CntE7(4);
+	IntTrig <= (not CntV5(2) nand CntV5(3)) nand not CntV5(4);
 
 	ISel(0) <= Status_i(0) nor (Status_i(6) nor A(13));
 	ISel(1) <= Status_i(0) nor Status_i(6);
 
 	with ISel select
-		DI <= "110" & CntE7(2) & not CntE7(2) & "111" when "00",
+		DI <= "110" & CntV5(2) & not CntV5(2) & "111" when "00",
 			GDB when "01",
-			IB when "10",
-			RR(7 downto 0) when others;
+			rom_do when "10",
+			ram_read(7 downto 0) when others;
 
-	RWE_n <= Wr_n or not (RR(8) xor RR(9)) or not CntD5(2);
-	RAB <= A(12 downto 0) when CntD5(2) = '1' else
-		std_logic_vector(CntE7(3 downto 0) & CntE6(3 downto 0) & CntE5(3 downto 0) & CntD5(3));
+	RWE_n <= Wr_n or not (ram_read(8) xor ram_read(9)) or not CntH4(2);
+	ram_addr <= A(12 downto 0) when CntH4(2) = '1' else
+		std_logic_vector(CntV5(3 downto 0) & CntV4(3 downto 0) & CntH5(3 downto 0) & CntH4(3));
 
 	u_8080: T8080se
 		generic map (
@@ -214,7 +214,7 @@ begin
 			Int_i <= '0';
 			OldASEL := '0';
 			Ready_i <= '0';
-			RR <= (others => '0');
+			ram_read <= (others => '0');
 		elsif Clk'event and Clk = '1' then
 			-- E3
 			-- Interrupt
@@ -238,17 +238,17 @@ begin
 			elsif Ready_i = '1' then
 				Ready_i <= '1';
 			else
-				Ready_i <= RR(9);
+				Ready_i <= ram_read(9);
 			end if;
 			if Sync = '1' and A(13) = '1' then
-				RR <= (others => '0');
-			elsif (CntD5(2) = '1' and OldASEL = '0') or                                 -- ASEL pos edge
-				(CntD5(2) = '0' and OldASEL = '1' and RR(8) = '1') then -- ASEL neg edge
-				RR(7 downto 0) <= RDB;
-				RR(8) <= '1';
-				RR(9) <= RR(8);
+				ram_read <= (others => '0');
+			elsif (CntH4(2) = '1' and OldASEL = '0') or                                 -- ASEL pos edge
+				(CntH4(2) = '0' and OldASEL = '1' and ram_read(8) = '1') then -- ASEL neg edge
+				ram_read(7 downto 0) <= ram_do;
+				ram_read(8) <= '1';
+				ram_read(9) <= ram_read(8);
 			end if;
-			OldASEL := CntD5(2);
+			OldASEL := CntH4(2);
 		end if;
 	end process;
 
@@ -256,30 +256,30 @@ begin
 	process (Rst_n, Clk)
 	begin
 		if Rst_n = '0' then
-			CntD5 <= (others => '0');
-			CntE5 <= (others => '0');
-			CntE6 <= (others => '0');
-			CntE7 <= (others => '0');
+			CntH4 <= (others => '0');
+			CntH5 <= (others => '0');
+			CntV4 <= (others => '0');
+			CntV5 <= (others => '0');
 		elsif Clk'event and Clk = '1' then
 			if VidEn = '1' then
-				CntD5 <= CntD5 + 1;
-				if CntD5 = 15 then
+				CntH4 <= CntH4 + 1;
+				if CntH4 = 15 then										-- 16
 
-					CntE5 <= CntE5 + 1;
-					if CntE5(3 downto 0) = 15 then
-						if CntE5(4) = '0' then
-							CntE5 <= "11100";
+					CntH5 <= CntH5 + 1;
+					if CntH5(3 downto 0) = 15 then						-- 16 x 16 = 256
+						if CntH5(4) = '0' then
+							CntH5 <= "11100";							-- 4 x 16 = 64 ( 256 + 64 = 320)
 
-							CntE6 <= CntE6 + 1;
-							if CntE6 = 15 then
+							CntV4 <= CntV4 + 1;
+							if CntV4 = 15 then							-- 16
 
-								CntE7 <= CntE7 + 1;
-								if CntE7(3 downto 0) = 15 then
-									if CntE7(4) = '0' then
-										CntE6 <= "1010";
-										CntE7 <= "11101";
+								CntV5 <= CntV5 + 1;
+								if CntV5(3 downto 0) = 15 then			-- 16 x 16 = 256
+									if CntV5(4) = '0' then
+										CntV4 <= "1010";				-- 6 ( 256 + 6 = 262)
+										CntV5 <= "11101";				--
 									else
-										CntE7 <= "00010";
+										CntV5 <= "00010";
 									end if;
 								end if;
 							end if;
@@ -299,8 +299,8 @@ begin
 			Video <= '0';
 		elsif Clk'event and Clk = '1' then
 			if VidEn = '1' then
-				if CntE7(4) = '0' and CntE5(4) = '0' and CntD5(2 downto 0) = "011" then
-					Shift(7 downto 0) <= RDB(7 downto 0);
+				if CntV5(4) = '0' and CntH5(4) = '0' and CntH4(2 downto 0) = "011" then
+					Shift(7 downto 0) <= ram_do(7 downto 0);
 				else
 					Shift(6 downto 0) <= Shift(7 downto 1);
 					Shift(7) <= '0';
@@ -318,12 +318,12 @@ begin
 			VSync <= '1';
 		elsif Clk'event and Clk = '1' then
 			if VidEn = '1' then
-				if CntE5(4) = '1' and CntE5(1 downto 0) = "10" then
+				if CntH5(4) = '1' and CntH5(1 downto 0) = "10" then
 					HSync <= '0';
 				else
 					HSync <= '1';
 				end if;
-				if CntE7(4) = '1' and CntE7(0) = '0' and CntE6(3 downto 2) = "11" then
+				if CntV5(4) = '1' and CntV5(0) = '0' and CntV4(3 downto 2) = "11" then
 					VSync <= '0';
 				else
 					VSync <= '1';

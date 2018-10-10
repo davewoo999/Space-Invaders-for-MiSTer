@@ -65,11 +65,11 @@ entity invaders is
 		Sel2Player      : in  std_logic;
 		Fire            : in  std_logic;
 		DIP             : in  std_logic_vector(8 downto 1);
-		RDB             : in  std_logic_vector(7 downto 0);
-		IB              : in  std_logic_vector(7 downto 0);
-		RWD             : out std_logic_vector(7 downto 0);
-		RAB             : out std_logic_vector(12 downto 0);
-		AD              : out std_logic_vector(15 downto 0);
+		ram_do             : in  std_logic_vector(7 downto 0);
+		rom_do              : in  std_logic_vector(7 downto 0);
+		ram_di             : out std_logic_vector(7 downto 0);
+		ram_addr             : out std_logic_vector(12 downto 0);
+		cpu_addr              : out std_logic_vector(15 downto 0);
 		SoundCtrl3      : out std_logic_vector(5 downto 0);
 		SoundCtrl5      : out std_logic_vector(5 downto 0);
 		Rst_n_s         : out std_logic;
@@ -87,14 +87,14 @@ architecture rtl of invaders is
 		Rst_n           : in  std_logic;
 		Clk             : in  std_logic;
 		RWE_n           : out std_logic;
-		RDB             : in  std_logic_vector(7 downto 0);
-		RAB             : out std_logic_vector(12 downto 0);
+		ram_do             : in  std_logic_vector(7 downto 0);
+		ram_addr             : out std_logic_vector(12 downto 0);
 		Sounds          : out std_logic_vector(7 downto 0);
 		Ready           : out std_logic;
 		GDB             : in  std_logic_vector(7 downto 0);
-		IB              : in  std_logic_vector(7 downto 0);
-		DB              : out std_logic_vector(7 downto 0);
-		AD              : out std_logic_vector(15 downto 0);
+		rom_do              : in  std_logic_vector(7 downto 0);
+		cpu_do              : out std_logic_vector(7 downto 0);
+		cpu_addr              : out std_logic_vector(15 downto 0);
 		Status          : out std_logic_vector(7 downto 0);
 		Systb           : out std_logic;
 		Int             : out std_logic;
@@ -115,9 +115,9 @@ architecture rtl of invaders is
 	signal GDB2         : std_logic_vector(7 downto 0);
 	signal S            : std_logic_vector(7 downto 0);
 	signal GDB          : std_logic_vector(7 downto 0);
-	signal DB           : std_logic_vector(7 downto 0);
+	signal cpu_do           : std_logic_vector(7 downto 0);
 	signal Sounds       : std_logic_vector(7 downto 0);
-	signal AD_i         : std_logic_vector(15 downto 0);
+	signal cpu_addr_i         : std_logic_vector(15 downto 0);
 	signal PortWr       : std_logic_vector(6 downto 2);
 	signal EA           : std_logic_vector(2 downto 0);
 	signal D5           : std_logic_vector(15 downto 0);
@@ -128,8 +128,8 @@ architecture rtl of invaders is
 begin
 
 	Rst_n_s <= Rst_n_s_i;
-	RWD <= DB;
-	AD <= AD_i;
+	ram_di <= cpu_do;
+	cpu_addr <= cpu_addr_i;
 
 	process (Rst_n, Clk)
 		variable Rst_n_r : std_logic;
@@ -168,14 +168,14 @@ begin
 			Rst_n => Rst_n_s_i,
 			Clk => Clk,
 			RWE_n => RWE_n,
-			RDB => RDB,
-			IB => IB,
-			RAB => RAB,
+			ram_do => ram_do,
+			rom_do => rom_do,
+			ram_addr => ram_addr,
 			Sounds => Sounds,
 			Ready => open,
 			GDB => GDB,
-			DB => DB,
-			AD => AD_i,
+			cpu_do => cpu_do,
+			cpu_addr => cpu_addr_i,
 			Status => open,
 			Systb => open,
 			Int => open,
@@ -190,7 +190,7 @@ begin
 			HSync => HSync,
 			VSync => VSync);
 
-	with AD_i(9 downto 8) select
+	with cpu_addr_i(9 downto 8) select
 		GDB <= GDB0 when "00",
 				GDB1 when "01",
 				GDB2 when "10",
@@ -223,11 +223,11 @@ begin
 	GDB2(6) <= MoveRight;
 	GDB2(7) <= DIP(1);  -- Coin info default on '0'
 
-	PortWr(2) <= '1' when AD_i(10 downto 8) = "010" and Sample = '1' else '0';
-	PortWr(3) <= '1' when AD_i(10 downto 8) = "011" and Sample = '1' else '0';
-	PortWr(4) <= '1' when AD_i(10 downto 8) = "100" and Sample = '1' else '0';
-	PortWr(5) <= '1' when AD_i(10 downto 8) = "101" and Sample = '1' else '0';
-	PortWr(6) <= '1' when AD_i(10 downto 8) = "110" and Sample = '1' else '0';
+	PortWr(2) <= '1' when cpu_addr_i(10 downto 8) = "010" and Sample = '1' else '0';
+	PortWr(3) <= '1' when cpu_addr_i(10 downto 8) = "011" and Sample = '1' else '0';
+	PortWr(4) <= '1' when cpu_addr_i(10 downto 8) = "100" and Sample = '1' else '0';
+	PortWr(5) <= '1' when cpu_addr_i(10 downto 8) = "101" and Sample = '1' else '0';
+	PortWr(6) <= '1' when cpu_addr_i(10 downto 8) = "110" and Sample = '1' else '0';
 
 	process (Rst_n_s_i, Clk)
 		variable OldSample : std_logic;
@@ -240,17 +240,17 @@ begin
 			OldSample := '0';
 		elsif Clk'event and Clk = '1' then
 			if PortWr(2) = '1' then
-				EA <= DB(2 downto 0);
+				EA <= cpu_do(2 downto 0);
 			end if;
 			if PortWr(3) = '1' then
-				SoundCtrl3 <= DB(5 downto 0);
+				SoundCtrl3 <= cpu_do(5 downto 0);
 			end if;
 			if PortWr(4) = '1' and OldSample = '0' then
-				D5(15 downto 8) <= DB;
+				D5(15 downto 8) <= cpu_do;
 				D5(7 downto 0) <= D5(15 downto 8);
 			end if;
 			if PortWr(5) = '1' then
-				SoundCtrl5 <= DB(5 downto 0);
+				SoundCtrl5 <= cpu_do(5 downto 0);
 			end if;
 			OldSample := Sample;
 		end if;

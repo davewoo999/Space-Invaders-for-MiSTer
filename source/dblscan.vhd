@@ -82,8 +82,8 @@ architecture RTL of DBLSCAN is
   signal obank_t1 : std_logic;
   --
   signal vs_cnt : std_logic_vector(2 downto 0);
-  signal rgb_out_a : std_logic_vector(7 downto 0);
-  signal rgb_out_b : std_logic_vector(7 downto 0);
+  signal rgb_out_a : std_logic_vector(2 downto 0);
+  signal rgb_out_b : std_logic_vector(2 downto 0);
 begin
 
   p_input_timing : process
@@ -114,35 +114,35 @@ begin
   we_a <=     ibank;
   we_b <= not ibank;
   
-  u_ram_a : work.dpram generic map (11,8)
+  u_ram_a : work.dpram generic map (11,3)
 port map
 (
 	clock_a   => Clk,
 	wren_a    => we_a,
 	address_a => hpos_i,
-	data_a    => RGB_IN,
+	data_a    => RGB_IN(2 downto 0),
 	q_a       => open,
 	
 	clock_b   => Clk_X2,
 	wren_b    => '0',
 	address_b => hpos_o,
-	data_b    => x"00",
+	data_b    => "000",
 	q_b       => rgb_out_a
 );	
 	  
-  u_ram_b : work.dpram generic map (11,8)
+  u_ram_b : work.dpram generic map (11,3)
 port map
 (
 	clock_a   => Clk,
 	wren_a    => we_b,
 	address_a => hpos_i,
-	data_a    => RGB_IN,
+	data_a    => RGB_IN(2 downto 0),
 	q_a       => open,
 	
 	clock_b   => Clk_X2,
 	wren_b    => '0',
 	address_b => hpos_o,
-	data_b    => x"00",
+	data_b    => "000",
 	q_b       => rgb_out_b
 );	
 
@@ -187,9 +187,9 @@ port map
 
 	obank_t1 <= obank;
 	if (obank_t1 = '1') then
-	  RGB_OUT <= rgb_out_b;
+	  RGB_OUT <= "00000" & rgb_out_b;
 	else
-	  RGB_OUT <= rgb_out_a;
+	  RGB_OUT <= "00000" & rgb_out_a;
 	end if;
 
 	VSYNC_OUT <= not vs_cnt(2);
