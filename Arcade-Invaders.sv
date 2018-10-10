@@ -88,36 +88,36 @@ assign HDMI_ARY = status[1] ? 8'd9  : status[2] ? 8'd3 : 8'd1;
 
 `include "build_id.v" 
 localparam CONF_STR = {
-	"A.invaders;;",
+	"A.INVADERS;;",
 	"-;",
-//	"O1,Aspect Ratio,Original,Wide;", --- no effect
-//	"O2,Orientation,Vert,Horz;",		 --- cannot get it to work
+	"O1,Aspect Ratio,Original,Wide;", 
+	"O2,Orientation,Vert,Horz;",
 	"O34,Scanlines(vert),No,25%,50%,75%;",
 	"-;",
 	"O5,Display Coin Info,ON,OFF;",
-//	"O6,Bonus Base,1500pts,1000pts;", This can only be set before game start - changes freezes play and no reset - could add code to reset on change??
+//	"O6,Bonus Base,1500pts,1000pts;", // This can only be set before game start - change freezes play and no reset - could add code to reset on change??
 	"O78,Bases,3,4,5,6;",
 	"-;",
+	"O9A,Colours,Original,colour1,colour2,colour3;",
 	"-;",
 	"T6,Reset;",
+	"J,Fire,Start 1P,Start 2P;",
 	"V,v2.00.",`BUILD_DATE
 };
 
 ////////////////////   CLOCKS   ///////////////////
 
-wire clk_39p9, clk_9p9, clk_19p9, clk_79p9, clk_4p9;
+wire clk_25p2, clk_12p6, clk_6p3, clk_10;
 wire pll_locked;
-//wire clk_hdmi;
 
 pll pll
 (
 	.refclk(CLK_50M),
 	.rst(0),
-	.outclk_0(clk_79p9),	// 79.870129	x8  79.872
-	.outclk_1(clk_39p9),	// 39.935064	x4  39.936
-	.outclk_2(clk_19p9),	// 19.967532	x2  19.968
-	.outclk_3(clk_9p9),	// 9.983766    should be 9.984 original clk speed
-	.outclk_4(clk_4p9),	// 4.991883		/ 2
+	.outclk_0(clk_25p2),	// gives 31.4 khz and 60hz with 800 x 524 display (vga 640x480)
+	.outclk_1(clk_12p6),	// inbetween
+	.outclk_2(clk_6p3),	// gives 15.1 khz and 60hz with 400 x 262 display (half vga 320x240)
+	.outclk_3(clk_10),	// 10    should be 9.984 original clk speed
 	.locked(pll_locked)
 );
 
@@ -140,7 +140,7 @@ wire [15:0] joy = joystick_0 | joystick_1;
 
 hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 (
-	.clk_sys(clk_19p9),
+	.clk_sys(clk_25p2),
 	.HPS_BUS(HPS_BUS),
 
 	.conf_str(CONF_STR),
@@ -161,7 +161,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 
 wire       pressed = ps2_key[9];
 wire [8:0] code    = ps2_key[8:0];
-always @(posedge clk_19p9) begin
+always @(posedge clk_25p2) begin
 	reg old_state;
 	old_state <= ps2_key[10];
 	
@@ -172,9 +172,46 @@ always @(posedge clk_19p9) begin
 			'h006: btn_two_players  <= pressed; // F2
 			'h01C: btn_left      	<= pressed; // A
 			'h023: btn_right      	<= pressed; // D
-			'h021: btn_coin  		<= pressed; // C
+			'h021: btn_coin  			<= pressed; // C
 		endcase
 	end
+end
+
+always @(posedge clk_25p2) begin
+	case(status[10:9])
+		2'b00: begin
+					ms_col	<= 3'b100;
+					bs_col	<= 3'b010;
+					sh_col	<= 3'b010;
+					sc1_col	<= 3'b111;
+					sc2_col	<= 3'b111;
+					mn_col	<= 3'b111;
+				 end
+		2'b01: begin
+					ms_col	<= 3'b100;
+					bs_col	<= 3'b010;
+					sh_col	<= 3'b110;
+					sc1_col	<= 3'b011;
+					sc2_col	<= 3'b101;
+					mn_col	<= 3'b111;
+				 end
+		2'b10: begin
+					ms_col	<= 3'b110;
+					bs_col	<= 3'b001;
+					sh_col	<= 3'b101;
+					sc1_col	<= 3'b100;
+					sc2_col	<= 3'b100;
+					mn_col	<= 3'b111;
+				 end
+		2'b11: begin
+					ms_col	<= 3'b101;
+					bs_col	<= 3'b011;
+					sh_col	<= 3'b001;
+					sc1_col	<= 3'b110;
+					sc2_col	<= 3'b100;
+					mn_col	<= 3'b010;
+				 end
+	endcase
 end
 
 reg btn_right = 0;
@@ -184,23 +221,30 @@ reg btn_two_players = 0;
 reg btn_fire = 0;
 reg btn_coin = 0;
 
+wire [2:0] ms_col;
+wire [2:0] bs_col;
+wire [2:0] sh_col;
+wire [2:0] sc1_col;
+wire [2:0] sc2_col;
+wire [2:0] mn_col;
+
 wire hblank, vblank;
-wire ce_vid = 1; // was clk_9p9
+wire ce_vid = 1'b1;
 wire hs, vs;
 wire rde, rhs, rvs;
 wire [2:0] r,g,rr,rg;
 wire [2:0] b,rb;
 
-assign VGA_CLK  = clk_19p9; // was clk_19p9
+assign VGA_CLK  = clk_25p2; 
 assign VGA_CE   = ce_vid;
-//assign VGA_R    = {r,r,r[2:1]};
-//assign VGA_G    = {g,g,g[2:1]};
-//assign VGA_B    = {b,b,b[2:1]};
-//assign VGA_DE   = ~(hblank | vblank);
-//assign VGA_HS   = ~hs;
-//assign VGA_VS   = ~vs;
+assign VGA_R    = R_sd;
+assign VGA_G    = G_sd;
+assign VGA_B    = B_sd;
+assign VGA_DE   = ~(hb_sd | vb_sd);
+assign VGA_HS   = ~hs_sd;
+assign VGA_VS   = ~vs_sd;
 
-assign HDMI_CLK = status[2] ? VGA_CLK: clk_39p9;
+assign HDMI_CLK = status[2] ? VGA_CLK: clk_25p2;
 assign HDMI_CE  = status[2] ? VGA_CE : 1'b1;
 assign HDMI_R   = status[2] ? VGA_R  : {rr,rr,rr[2:1]};
 assign HDMI_G   = status[2] ? VGA_G  : {rg,rg,rg[2:1]};
@@ -210,68 +254,117 @@ assign HDMI_HS  = status[2] ? VGA_HS : rhs;
 assign HDMI_VS  = status[2] ? VGA_VS : rvs;
 assign HDMI_SL  = status[2] ? 2'd0   : status[4:3];
 
-screen_rotate #(318,260,9,2,1,1) screen_rotate
+localparam LINE_LENGTH 	= 800;
+localparam HALF_DEPTH	= 0;
+wire [7:0] R_sd;
+wire [7:0] G_sd;
+wire [7:0] B_sd;
+wire hs_sd, vs_sd, hb_sd, vb_sd, ce_pix_sd;
+
+scandoubler #(.LENGTH(LINE_LENGTH), .HALF_DEPTH(HALF_DEPTH)) sd
 (
-	.clk_in(clk_4p9), // with 39.9 hdmi -- 9.9 full height  half width 19.9 double height half width
+	
+	.clk_sys(clk_25p2),
+	.ce_pix(clk_6p3),
+	.hq2x(1'b1),
+	.hs_in(I_HS),
+	.vs_in(I_VS),
+	.hb_in(I_HB),
+	.vb_in(I_VB),
+	.r_in(I_R),
+	.g_in(I_G),
+	.b_in(I_B),
+	.mono(1'b0),
+
+	.ce_pix_out(ce_pix_sd),
+	
+	.hs_out(hs_sd),
+	.vs_out(vs_sd),
+	.hb_out(hb_sd),
+	.vb_out(vb_sd),
+	.r_out(R_sd),
+	.g_out(G_sd),
+	.b_out(B_sd)
+);
+
+screen_rotate #(260,224,9,8,1,1) screen_rotate  // 256,224
+(
+	.clk_in(clk_6p3), 
 	.ce_in(ce_vid),
 	.video_in({r,g,b}),
 	.hblank(hblank),
 	.vblank(vblank),
 
-	.clk_out(clk_39p9),
+	.clk_out(clk_25p2),
 	.video_out({rr,rg,rb}),
 	.hsync(rhs),
 	.vsync(rvs),
 	.de(rde)
 );
-wire info;
-//wire bonus;
-wire [1:0] bases;
+
+reg info = 0;
+reg bonus = 0;
+reg newbonus = 0;
+reg [1:0] bases = 2'b0;
 assign info = status[5];
-//assign bonus = status[6];
+assign newbonus = status[6];
 assign bases = status[8:7];
 wire [7:0] audio;
 assign AUDIO_L = {audio, audio};
 assign AUDIO_R = AUDIO_L;
 assign AUDIO_S = 0;
+wire reset;
+assign reset = (RESET | status[0] | status[6] | buttons[1] | ioctl_download);
+wire [7:0] I_R;
+wire [7:0] I_G;
+wire [7:0] I_B;
+wire I_HS,I_VS,I_VB,I_HB;
 
 invaders_top invaders_top
 (
 
-	.Clk(clk_9p9),
-	.Clk_x2(clk_19p9),
-	.Clk_x4(clk_39p9),
+	.Clk(clk_10),
+	.Clk_mem(clk_25p2),
+	.clk_vid(clk_6p3),
 
-	.I_RESET(RESET | status[0] | status[6] | buttons[1] | ioctl_download),
+	.I_RESET(reset),
 
 	.dn_addr(ioctl_addr[15:0]),
 	.dn_data(ioctl_dout),
 	.dn_wr(ioctl_wr),
 
-	.video_r(r),
-	.video_g(g),
-	.video_b(b),
-	.video_hblank(hblank),
-	.video_vblank(vblank),
-	.video_hs(hs),
-	.video_vs(vs),
+	.hdmi_r(r),
+	.hdmi_g(g),
+	.hdmi_b(b),
+	.hdmi_hblnk(hblank),
+	.hdmi_vblnk(vblank),
+	.hdmi_hs(hs),
+	.hdmi_vs(vs),
 	
-	.r(VGA_R),
-	.g(VGA_G),
-	.b(VGA_B),
-	.de(VGA_DE),
-	.hs(VGA_HS),
-	.vs(VGA_VS),
+	.vga_r(I_R),
+	.vga_g(I_G),
+	.vga_b(I_B),
+	.vga_hs(I_HS),
+	.vga_vs(I_VS),
+	.vga_hb(I_HB),
+	.vga_vb(I_VB),
 	
 	.audio_out(audio),
+	.ms_col(ms_col),
+	.bs_col(bs_col),
+	.sh_col(sh_col),
+	.sc1_col(sc1_col),
+	.sc2_col(sc2_col),
+	.mn_col(mn_col),
 	.info(info),
-//	.bonus(bonus),
+	.bonus(bonus),
+	.newbonus(newbonus),
 	.bases(bases),
-	.btn_coin(btn_coin | joy[8]),
-	.btn_one_player(btn_one_player | joy[8]),
-	.btn_two_player(btn_two_players),
+	.btn_coin(btn_coin | joy[5] | joy[6]),
+	.btn_one_player(btn_one_player | joy[5]),
+	.btn_two_player(btn_two_players | joy[6]),
 
-	.btn_fire(btn_fire | joy[5]),
+	.btn_fire(btn_fire | joy[4]),
 	.btn_right(btn_right | joy[0]),
 	.btn_left(btn_left | joy[1])
 
