@@ -9,12 +9,12 @@ http://fpgaarcade.com/games.htm
 --   F2 : Start 2 players
 --   F1 : Start 1 player
 
---   Space bar   : Fire  
+   Space bar   : Fire  
 
---   A           : Move Left
---   D           : Move Right
---
--- Untested Joystick support.
+   A           : Move Left
+   D           : Move Right
+
+-- Joystick support.
 
 The rbf file is in releases
 
