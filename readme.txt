@@ -14,7 +14,7 @@ http://fpgaarcade.com/games.htm
 --   Left Arrow           : Move Left
 --   Right Arrow          : Move Right
 --
--- Untested Joystick support.
+-- Joystick support.
 
 The rbf file is in releases
 
