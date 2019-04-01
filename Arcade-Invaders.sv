@@ -1,8 +1,8 @@
 //============================================================================
-//  Arcade: Sinistar
+//  Arcade: Space Invaders
 //
-//  Port to MiSTer
-//  Copyright (C) 2018 Sorgelig
+//  Port to MiSTer Dave Wood (oldgit)
+//  April 2019 
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
