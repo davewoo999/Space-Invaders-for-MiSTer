@@ -66,22 +66,13 @@ entity invaders_top is
 		dn_data         	: in std_logic_vector(7 downto 0);
 		dn_wr					: in std_logic;
 		
-		hdmi_r				: out std_logic_vector(2 downto 0);
-		hdmi_g				: out std_logic_vector(2 downto 0);
-		hdmi_b				: out std_logic_vector(2 downto 0);
-		hdmi_hblnk		: out std_logic;
-		hdmi_vblnk		: out std_logic;
-		hdmi_hs				: out std_logic;
-		hdmi_vs				: out std_logic;
-		
-		vga_r						: out std_logic_vector(7 downto 0);
-		vga_g						: out std_logic_vector(7 downto 0);
-		vga_b						: out std_logic_vector(7 downto 0);
-
-		vga_hs						: out std_logic;
-		vga_vs						: out std_logic;	
-		vga_hb						: out std_logic;
-		vga_vb						: out std_logic;
+		r				: out std_logic_vector(3 downto 0);
+		g				: out std_logic_vector(3 downto 0);
+		b				: out std_logic_vector(3 downto 0);
+		hblnk		: out std_logic;
+		vblnk		: out std_logic;
+		hs				: out std_logic;
+		vs				: out std_logic;
 		
 		audio_out			: out std_logic_vector(7 downto 0);
 		ms_col				: in std_logic_vector(2 downto 0);
@@ -119,10 +110,9 @@ architecture rtl of invaders_top is
 	signal HSync           : std_logic;
 	signal VSync           : std_logic;
 	
-	signal hdmi_RGB        : std_logic_vector(2 downto 0);
-	signal vga_RGB     	   : std_logic_vector(2 downto 0);
-	signal HSync_X2        : std_logic;
-	signal VSync_X2        : std_logic;
+	signal RGB        : std_logic_vector(2 downto 0);
+	signal hblank           : std_logic;
+	signal vblank           : std_logic;
 
 	signal cpu_addr        : std_logic_vector(15 downto 0);
 	signal ram_addr        : std_logic_vector(12 downto 0);
@@ -144,20 +134,13 @@ architecture rtl of invaders_top is
 	signal rom_data_3      : std_logic_vector(7 downto 0);
 	signal ram_we          : std_logic;
 	--
-	signal HCnt            : std_logic_vector(11 downto 0);
-	signal VCnt            : std_logic_vector(11 downto 0);
-	signal DWHCnt          : unsigned(9 downto 0);
-	signal DWVCnt          : unsigned(9 downto 0);
+
+	signal DWHCnt          : unsigned(8 downto 0);
+	signal DWVCnt          : unsigned(8 downto 0);
 	signal Shift           : std_logic_vector(7 downto 0);
 	signal vid_addr        : std_logic_vector(12 downto 0);
 	signal vid_do          : std_logic;
-	signal HSync_t1        : std_logic;
-	signal hdmi_vblank     : std_logic;
-	signal hdmi_hblank     : std_logic;
-	signal vga_vblank      : std_logic;
-	signal vga_hblank      : std_logic;
-	signal dwhsync         : std_logic;
-	signal dwvsync         : std_logic;
+
 	signal Overlay_G1      : boolean;
 	signal Overlay_G2      : boolean;
 	signal Overlay_G3      : boolean;
@@ -167,7 +150,7 @@ architecture rtl of invaders_top is
 	signal Overlay_G1_VCnt : boolean;
 	
 	signal rom_cs			: std_logic;
---	signal bonus			: std_logic := '0';
+	signal spare			: std_logic := '0';
   --
 
 begin
@@ -177,15 +160,14 @@ begin
   process (clk_vid,I_RESET_L)
   begin
   		if I_RESET_L = '0' then
-			DWHCnt  <= "1111111111"; -- so its zero on first run
-			DWVCnt  <= "0000100000"; -- starts at 32 - first part of ram not used for video
-			dwhsync <= '0';
-			dwvsync <= '0';
-			hdmi_hblank  <= '0';
-			hdmi_vblank  <= '0';
-			vga_hblank  <= '0';
-			vga_vblank  <= '0';
-		elsif clk_vid'event and clk_vid = '1' then
+			DWHCnt  <= "111111111"; -- so its zero on first run
+			DWVCnt  <= "000000000"; -- starts at 32 - first part of ram not used for video so vblank = 1
+			hs <= '0';
+			vs <= '1';
+			hblank  <= '0';
+			vblank  <= '1';
+
+		elsif rising_edge(clk_vid) then
 -- colour overlays
 				DWHCnt <= DWHCnt + "1";
 				if (DWHCnt = 17) then
@@ -193,8 +175,6 @@ begin
 				end if;
 				if (DWHCnt = 25) then
 					Overlay_G1 <= false;
-				end if;
-				if (DWHCnt = 25) then
 					Overlay_G2 <= true;
 				end if;
 				if (DWHCnt = 49) then
@@ -225,26 +205,32 @@ begin
 					Overlay_G5 <= false;
 				end if;
 -- horizontal blank and sync
-				if (DWHCnt = 258) then -- should be 256 but misses top line when rotated
-					hdmi_hblank  <= '1';
-				end if;
-				if (DWHCnt = 320) then
-					vga_hblank  <= '1';
+				if (DWHCnt = 257) then -- should be 256 but misses top line when rotated
+					hblank  <= '1';
 				end if;
 				if (DWHCnt = 328) then
-					dwhsync <= '1';
+					hs <= '1';
 				end if;
 				if (DWHCnt = 376) then 
-					dwhsync <= '0';
+					hs <= '0';
 				end if;
 
-				if (DWHCnt = 400) then 
+				if (DWHCnt = 384) then -- 399
 					DWVCnt <= DWVCnt + "1";
-					hdmi_hblank <= '0';
-					vga_hblank <= '0';
-					DWHCnt <= "1111111111";
+					hblank <= '0';
+					DWHCnt <= "111111111";
 				end if;
--- colour overlay for spare bases	
+-- vertical
+				if (DWVCnt = 15) then
+					vs <= '1';
+				end if;				
+				if (DWVCnt = 17) then
+					vs <= '0';
+				end if;
+				if (DWVCnt = 32) then
+					vblank  <= '0';
+				end if;				
+				-- colour overlay for spare bases	
 				if (DWVCnt = 54) then
 					Overlay_G1_VCnt <= true;
 				end if;
@@ -252,24 +238,18 @@ begin
 					Overlay_G1_VCnt <= false;
 				end if;
 -- vertical blank and sync
-				if (DWVCnt = 256) then 	
-					hdmi_vblank  <= '1';
+				if (DWVCnt = 255) then 	
+					vblank  <= '1';
 				end if;	
-				if (DWVCnt = 272) then 	
-					vga_vblank  <= '1';
-				end if;
-				if (DWVCnt = 277)then	
-					dwvsync <= '1';
-				end if;
-				if (DWVCnt = 278)then	
-					dwvsync <= '0';
-				end if;
-				if (DWVCnt = 294)then 	
-					hdmi_vblank <= '0';
-					vga_vblank <= '0';
-					DWVCnt <= "0000100000";
-				end if;					
-			
+--				if (DWVCnt = 256)then	
+--					vs <= '1';
+--				end if;
+--				if (DWVCnt = 257)then	
+--					vs <= '0';
+--				end if;
+				if (DWVCnt = 261)then 	
+					DWVCnt <= "000000000";
+				end if;	
 		end if;
   end process;
   
@@ -278,8 +258,8 @@ begin
 		if I_RESET_L = '0' then
 			vid_do <= '0';
 			Shift <= (others => '0');		
-  		elsif clk_vid'event and clk_vid = '1' then
-				if (hdmi_vblank ='0'and hdmi_hblank = '0') then
+  		elsif rising_edge(clk_vid) then
+				if (vblank ='0'and hblank = '0') then
 					if (DWHCnt(2 downto 0) = "000") then 			
 						vid_addr <= std_logic_vector(DWVCnt(7 downto 0) & DWHCnt(7 downto 3));
 						Shift(7 downto 0) <= ram2_do(7 downto 0); 
@@ -290,52 +270,33 @@ begin
 					vid_do <= Shift(0);									
 				end if;
 				if (vid_do = '0') then
-					hdmi_RGB <= "000";
-					vga_RGB <= "000";
+					RGB <= "000";
 				else
 					if Overlay_MS then
-						hdmi_RGB <= ms_col;
-						vga_RGB <= ms_col;
+						RGB <= ms_col;
 					elsif Overlay_G2 then
-						hdmi_RGB <= bs_col;
-						vga_RGB <= bs_col;
+						RGB <= bs_col;
 					elsif Overlay_G1 and Overlay_G1_VCnt then
-						hdmi_RGB <= bs_col;
-						vga_RGB <= bs_col;
+						RGB <= bs_col;
 					elsif Overlay_G3 then
-						hdmi_RGB <= sh_col;
-						vga_RGB <= sh_col;
+						RGB <= sh_col;
 					elsif Overlay_G4 then
-						hdmi_RGB <= sc2_col;
-						vga_RGB <= sc2_col;
+						RGB <= sc2_col;
 					elsif Overlay_G5 then
-						hdmi_RGB <= sc1_col;
-						vga_RGB <= sc1_col;
+						RGB <= sc1_col;
 					else
-						hdmi_RGB <= mn_col;
-						vga_RGB <= mn_col;
+						RGB <= mn_col;
 					end if;
 				end if;			
 		end if;
   end process;
 
 		
-  hdmi_r 		<= (hdmi_RGB(2) & hdmi_RGB(2) & hdmi_RGB(2));
-  hdmi_g 		<= (hdmi_RGB(1) & hdmi_RGB(1) & hdmi_RGB(1));
-  hdmi_b 		<= (hdmi_RGB(0) & hdmi_RGB(0) & hdmi_RGB(0));
-  hdmi_hs 		<=  dwhsync;
-  hdmi_vs 		<=  dwvsync;
-  hdmi_hblnk	<= hdmi_hblank;
-  hdmi_vblnk 	<= hdmi_vblank;
-  
-  vga_r 		<= (vga_RGB(2) & vga_RGB(2) & vga_RGB(2) & vga_RGB(2) & vga_RGB(2) & vga_RGB(2) & vga_RGB(2) & vga_RGB(2));
-  vga_g 		<= (vga_RGB(1) & vga_RGB(1) & vga_RGB(1) & vga_RGB(1) & vga_RGB(1) & vga_RGB(1) & vga_RGB(1) & vga_RGB(1));
-  vga_b 		<= (vga_RGB(0) & vga_RGB(0) & vga_RGB(0) & vga_RGB(0) & vga_RGB(0) & vga_RGB(0) & vga_RGB(0) & vga_RGB(0));
-  vga_hs 		<=  dwhsync;
-  vga_vs 		<=  dwvsync;
-  vga_hb 		<=  vga_hblank;
-  vga_vb		<=  vga_vblank;
-
+  r 		<= (RGB(2) & RGB(2) & RGB(2) & RGB(2));
+  g 		<= (RGB(1) & RGB(1) & RGB(1) & RGB(1));
+  b 		<= (RGB(0) & RGB(0) & RGB(0) & RGB(0));
+  hblnk	<= hblank;
+  vblnk	<= vblank;
 
   --
 
